@@ -1,5 +1,6 @@
 #include "event_track.h"
 #include "base64.h"
+#include <sstream>
 
 // macro either write DASHEventMessageBox v1 (original proposal) or event message instance box (emib) ISO standard
 const bool USE_EMSG_V1 = false;
@@ -57,6 +58,87 @@ uint32_t event_track::find_sample_boundaries(
 
 	return (uint32_t)sample_boundaries.size();
 };
+
+/* wrapper, returns the bytes in the metadata track cmaf header,
+wrapper around event_track write header function  */
+uint32_t event_track::get_meta_header_bytes(
+	uint32_t track_id,
+	uint32_t timescale,
+	std::vector<uint8_t>& header_bytes)
+{
+	std::stringstream ot(
+		std::stringstream::out | \
+		std::stringstream::in | \
+		std::stringstream::binary\
+	);
+
+	event_track::write_event_track_cmaf_header(track_id, timescale, ot);
+
+	ot.seekg(0, ot.end);
+	uint64_t length = ot.tellg();
+	ot.seekg(0, ot.beg);
+	header_bytes.clear();
+	header_bytes.reserve(length);
+
+	char c;
+	while (ot.tellg() != length)
+	{
+		c = ot.get();
+		header_bytes.push_back((uint8_t)c);
+	}
+
+	return (uint32_t)header_bytes.size();
+}
+
+
+/* wrapper, return the bytes in the metadata track cmaf
+header, wrapper around event track write segment function  */
+uint32_t event_track::get_meta_segment_bytes(
+	std::vector<event_track::DASHEventMessageBoxv1>& in_emsg_list,
+	uint64_t seg_start,
+	uint64_t seg_end,
+	uint32_t track_id,
+	uint32_t timescale,
+	std::vector<uint8_t>& segment_bytes)
+{
+	std::stringstream ot(
+		std::stringstream::out | \
+		std::stringstream::in | \
+		std::stringstream::binary\
+	);
+
+	std::vector<event_track::EventSample> samples_in_segment;
+
+	find_event_samples(
+		in_emsg_list,
+		samples_in_segment,
+		seg_start,
+		seg_end
+	);
+
+	event_track::write_evt_samples_as_fmp4_fragment(
+		samples_in_segment,
+		ot,
+		seg_start,
+		track_id,
+		seg_end
+	);
+
+	ot.seekg(0, ot.end);
+	uint64_t length = ot.tellg();
+	ot.seekg(0, ot.beg);
+	segment_bytes.clear();
+	segment_bytes.reserve(length);
+
+	char c;
+	while (ot.tellg() != length)
+	{
+		c = ot.get();
+		segment_bytes.push_back((uint8_t)c);
+	}
+
+	return (uint32_t)segment_bytes.size();
+}
 
 //! algorithm to find all event message track samples between segment_start and segment_end (0=infinite)
 uint32_t event_track::find_event_samples(
@@ -281,6 +363,32 @@ void event_track::write_evt_samples_as_fmp4_fragment(
 	return;
 };
 
+// writes a cmaf heaer of an event message track
+void event_track::write_event_track_cmaf_header(uint32_t track_id, uint32_t timescale, std::ostream &ot)
+{
+	std::vector<uint8_t> sparse_moov = base64_decode(moov_64_enc);
+	set_track_id(sparse_moov, track_id);
+
+	// write back the timescale mvhd / mhd
+	fmp4_write_uint32(timescale, (char*)&sparse_moov[28]);
+	fmp4_write_uint32(timescale, (char*)&sparse_moov[244]);
+	fmp4_write_uint32(track_id, (char*)&sparse_moov[544]);
+	event_track::set_evte(sparse_moov);
+
+	
+	//cout << sparse_moov.size() << endl;
+
+	if (ot.good())
+	{
+		// write the ftyp header
+		ot.write((char*)&sparse_ftyp[0], 20);
+		ot.write((const char*)&sparse_moov[0], sparse_moov.size());
+	}
+	
+	return;
+}
+
+// movie box header (deprecated)
 bool event_track::get_sparse_moov(
 	const std::string& urn, 
 	uint32_t timescale, 
@@ -297,11 +405,15 @@ bool event_track::get_sparse_moov(
 	// mdhd 
 	fmp4_write_uint32(timescale, (char *)&sparse_moov[244]);
 
+	// write back the timescale mvhd / mhd
+	fmp4_write_uint32(track_id, (char*)&sparse_moov[544]);
+
 	set_evte(sparse_moov);
 
 	return true;
 };
 
+//! function for comparing 4cc's
 bool compare_4cc(char *in, std::string in_4cc)
 {
 	if (in[0] == in_4cc[0] && in[1] == in_4cc[1] && in[2] == in_4cc[2] && in[3] == in_4cc[3])
@@ -310,7 +422,7 @@ bool compare_4cc(char *in, std::string in_4cc)
 		return false;
 }
 
-// carefull only use with the tested pre-encoded moov boxes to write streams and update the urn in them
+//! carefull only use with the tested pre-encoded moov boxes to write streams and update the urn in them
 void set_scheme_id_uri(std::vector<uint8_t> &moov_in, 
 	const std::string& urn)
 {
@@ -412,7 +524,7 @@ void set_scheme_id_uri(std::vector<uint8_t> &moov_in,
 	}
 };
 
-// carefull only use with the tested pre-encoded moov boxes to write streams and update the urn in them
+//! carefull only use with the tested pre-encoded moov boxes to write streams and update the urn in them
 void event_track::set_evte(std::vector<uint8_t>& moov_in)
 {
 	uint32_t size_diff = 0;
@@ -525,6 +637,7 @@ int event_track::write_to_segmented_event_track_file(
 	// write back the timescale mvhd / mhd
 	fmp4_write_uint32(timescale, (char *)&sparse_moov[28]);
 	fmp4_write_uint32(timescale, (char *)&sparse_moov[244]);
+	fmp4_write_uint32(track_id, (char*)&sparse_moov[544]);
 
 	event_track::set_evte(sparse_moov);
 
@@ -611,6 +724,7 @@ void event_track::ingest_event_stream::write_to_dash_event_stream(std::string &o
 	    ot.close();
 	}
 
+//! function to generate random event
 event_track::DASHEventMessageBoxv1 event_track::generate_random_event(bool set_duration_to_zero, uint32_t max_p , uint32_t max_d )
 {
 	std::default_random_engine generator;
@@ -638,7 +752,7 @@ event_track::DASHEventMessageBoxv1 event_track::generate_random_event(bool set_d
 	return e;
 };
 
-// parse an fmp4 file for media ingest
+//!  load an infile ingest stream and retrieve all events within it
 int event_track::ingest_event_stream::load_from_file(std::istream &infile, bool init_only)
 {
 	try
@@ -766,7 +880,7 @@ int event_track::ingest_event_stream::load_from_file(std::istream &infile, bool 
 	}
 }
 
-// parse an fmp4 file for media ingest
+//! function to parse an fmp4 file for media ingest and print all samples
 int event_track::ingest_event_stream::print_samples_from_file(std::istream &infile, bool init_only)
 {
 	try
@@ -900,7 +1014,7 @@ int event_track::ingest_event_stream::print_samples_from_file(std::istream &infi
 	}
 }
 
-
+//! function to generate an avail track and store it on disk
 int event_track::gen_avail_files(uint32_t track_duration, uint32_t seg_duration_ticks_ms, uint32_t avail_duration, uint32_t avail_interval, uint64_t start_time)
 {
 	std::vector<event_track::DASHEventMessageBoxv1> events;

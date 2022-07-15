@@ -298,7 +298,22 @@ namespace event_track {
 			e.message_data_ = message_data_;
 			return e;
 		}
+		
+		
 	};
+
+	void write_event_track_cmaf_header(uint32_t track_id, uint32_t timescale, std::ostream& ot);
+
+	//! function for getting bytes of a header
+	uint32_t get_meta_header_bytes(uint32_t track_id, uint32_t timescale, std::vector<uint8_t>& header_bytes);
+
+	//! function for getting bytes of a header
+	uint32_t get_meta_segment_bytes(std::vector<event_track::DASHEventMessageBoxv1>& in_emsg_list,
+			uint64_t seg_start,
+			uint64_t seg_end,
+			uint32_t track_id,
+			uint32_t timescale,
+			std::vector<uint8_t>& segment_bytes);
 
 	void set_evte(std::vector<uint8_t> &moov_in);
 
@@ -410,6 +425,7 @@ namespace event_track {
 		uint32_t avail_duration = 30000,
 		uint32_t avail_interval = 1800000, 
 		uint64_t start_time = 0);		// helper function generate random events for testing and example generation
+	
 	// first arg set duration to zero, second and third distribution of presentation time and duration
 	DASHEventMessageBoxv1 generate_random_event(bool set_duration_to_zero = false, uint32_t max_p = 150, uint32_t max_d = 20);
 	//static void write_embe(std::ostream &ostr, uint64_t timestamp_tfdt, uint32_t track_id, uint32_t duration_in);
