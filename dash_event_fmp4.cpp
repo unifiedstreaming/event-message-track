@@ -179,6 +179,11 @@ struct event_parser_t : public tinyxml2::XMLVisitor
 							for (int i = 0; i < data.size(); i++)
 								l_new_event.message_data_.push_back(data[i]);
 					}
+					else
+					{
+						for (int i = 0; i < data.size(); i++)
+							l_new_event.message_data_.push_back(data[i]);
+					}
 				}
 				else if (l_new_event.scheme_id_uri_.compare("urn:scte:scte35:2014:xml+bin") == 0)
 				{
