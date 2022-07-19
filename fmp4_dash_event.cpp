@@ -22,13 +22,13 @@ extern string moov_64_enc;
 
 void print_info()
 {
-	std::cout << "***                 fmp4DashEvent                     ***" << std::endl;
+	std::cout << "***                 fmp4_dash_event                     ***" << std::endl;
 	std::cout << "***       convert event message track to XML          ***" << std::endl;
 	std::cout << "***       Supports specific SCTE-214 schemes:         ***" << std::endl;
 	std::cout << "***            urn:scte:scte35:2014:xml+bin           ***" << std::endl;
 	std::cout << "***            urn:scte:scte35:2013:bin               ***" << std::endl;
 	std::cout << "**writes all other mpd events using @base64 attribute ***" << std::endl;
-	std::cout << "usage: fmp4DashEvent in_event.cmfm out.mpd    " << std::endl;
+	std::cout << "usage: fmp4_dash_event in_event.cmfm out.mpd    " << std::endl;
 }
 
 int main(int argc, char *argv[])

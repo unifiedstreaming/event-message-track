@@ -284,6 +284,6 @@ int main(int argc, char *argv[])
 		std::cout << " Format is under consideration for standardisation in MPEG as event message track " << std::endl;
 		std::cout << std::endl;
 		std::cout << std::endl;
-		std::cout << " Usage: dashEventfmp4 infile(dash/smil event xml) outfile(fmp4 emsg_track) [track_id(id)] [segment duration]" << std::endl;
+		std::cout << " Usage: dash_event_fmp4 infile(dash/smil event xml) outfile(fmp4 emsg_track) [track_id(id)] [segment duration]" << std::endl;
 	}
 }
