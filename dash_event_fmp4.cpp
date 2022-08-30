@@ -186,8 +186,19 @@ struct event_parser_t : public tinyxml2::XMLVisitor
 					}
 					else
 					{
+						//! escape character text with a cdata, binary data should be base64 encoded in xml
+						std::string preamble = "<![CDATA[";
+						for (int k = 0; k < preamble.size(); k++)
+							l_new_event.message_data_.push_back(preamble[k]);
+
+
+						
 						for (int i = 0; i < data.size(); i++)
 							l_new_event.message_data_.push_back(data[i]);
+
+						std::string postamble = "]]>";
+						for (int k = 0; k < postamble.size(); k++)
+							l_new_event.message_data_.push_back(postamble[k]);
 					}
 				}
 				else if (l_new_event.scheme_id_uri_.compare("urn:scte:scte35:2014:xml+bin") == 0)
