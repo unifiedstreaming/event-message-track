@@ -134,7 +134,7 @@ namespace event_track {
 
 		std::size_t size()
 		{
-			if (std::strcmp(scheme_id_uri_.c_str(), "urn:webvtt") == 0)
+			if (scheme_id_uri_.compare("urn:webvtt") == 0)
 				return message_data_.size() + 16;
 
 			return 8 + 4 + 8 + 4 + 4 + 4 + scheme_id_uri_.size() + value_.size() + 2 + message_data_.size();
@@ -174,7 +174,7 @@ namespace event_track {
 			uint32_t bytes_written = 0;
 
 			// write as webvtt
-			if (std::strcmp((char*)this->scheme_id_uri_.c_str(), "urn:webvtt") == 0) 
+			if (scheme_id_uri_.compare("urn:webvtt") == 0) 
 			{
 				uint32_t sz = (uint32_t)this->size();
 				fmp4_write_uint32(sz, int_buf);

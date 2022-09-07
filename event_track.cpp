@@ -1,8 +1,6 @@
 #include "event_track.h"
 #include "base64.h"
 #include <sstream>
-#include <string.h>
-#include <cstring>
 
 // macro either write DASHEventMessageBox v1 (original proposal) or event message instance box (emib) ISO standard
 const bool USE_EMSG_V1 = false;
