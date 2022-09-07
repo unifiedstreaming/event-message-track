@@ -384,6 +384,11 @@ namespace fmp4_stream {
 		0x00, 0x00, 0x00, 0x14, 'f', 't', 'y', 'p','c','m','f','m', 0x00,0x00,0x00,0x00,'c','m','f','c'
 	};
 
+	const uint8_t sparse_ftyp_vtt[20] =
+	{
+		0x00, 0x00, 0x00, 0x14, 'f', 't', 'y', 'p','c','m','f','t', 0x00,0x00,0x00,0x00,'c','m','f','c'
+	};
+
 	//-------------------------------- SCTE 35 parsing and detection -------------------
 	struct sc35_splice_info
 	{

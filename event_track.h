@@ -25,6 +25,13 @@ namespace event_track {
 		0x00, 0x00, 0x00, 0x08, 'e', 'm', 'e', 'b'
 	};
 
+	// vtt empty message cue
+	const uint8_t vtte[8] = {
+		0x00, 0x00, 0x00, 0x08, 'v', 't', 't', 'e'
+	};
+
+	void write_vtt_track_cmaf_header(uint32_t track_id, uint32_t timescale, std::ostream& ot);
+
 	//! struct to store a DASHEventMessageBoxv1
 	struct DASHEventMessageBoxv1 : fmp4_stream::full_box
 	{
@@ -127,6 +134,9 @@ namespace event_track {
 
 		std::size_t size()
 		{
+			if (strcmp(scheme_id_uri_.c_str(), "urn:webvtt") == 0)
+				return message_data_.size() + 16;
+
 			return 8 + 4 + 8 + 4 + 4 + 4 + scheme_id_uri_.size() + value_.size() + 2 + message_data_.size();
 		}
 
@@ -163,44 +173,71 @@ namespace event_track {
 			char long_buf[8];
 			uint32_t bytes_written = 0;
 
-			uint32_t sz = (uint32_t)this->size();
-			fmp4_write_uint32(sz, int_buf);
-			ostr.write((char *)int_buf, 4);
-			bytes_written += 4;
+			// write as webvtt
+			if (strcmp((char*)this->scheme_id_uri_.c_str(), "urn:webvtt") == 0) 
+			{
+				uint32_t sz = (uint32_t)this->size();
+				fmp4_write_uint32(sz, int_buf);
+				ostr.write((char*)int_buf, 4);
+				bytes_written += 4;
 
-			ostr.put('e');
-			ostr.put('m');
-			ostr.put('i');
-			ostr.put('b');
-			bytes_written += 4;
-			ostr.put((uint8_t)0);
-			ostr.put(0u);
-			ostr.put(0u);
-			ostr.put(0u);
-			bytes_written += 4;
+				ostr.put('v');
+				ostr.put('t');
+				ostr.put('t');
+				ostr.put('c');
+				bytes_written += 4;
 
-			fmp4_write_uint32(0, int_buf);
-			ostr.write(int_buf, 4);
-			bytes_written += 4;
-			fmp4_write_int64(presentation_time_delta_, long_buf);
-			ostr.write(long_buf, 8);
-			bytes_written += 8;
-			fmp4_write_uint32(event_duration_, int_buf);
-			ostr.write(int_buf, 4);
-			bytes_written += 4;
-			fmp4_write_uint32(id_, int_buf);
-			ostr.write(int_buf, 4);
-			bytes_written += 4;
-			ostr.write(scheme_id_uri_.c_str(), scheme_id_uri_.size() + 1);
-			bytes_written += (uint32_t)scheme_id_uri_.size() + 1;
-			ostr.write(value_.c_str(), value_.size() + 1);
-			bytes_written += (uint32_t)value_.size() + 1;
+				fmp4_write_uint32(sz - 8, int_buf);
+				ostr.write((char*)int_buf, 4);
+				bytes_written += 4;
+				ostr.put('p');
+				ostr.put('a');
+				ostr.put('y');
+				ostr.put('l');
 
-			if (message_data_.size())
-				ostr.write((char *)&message_data_[0], message_data_.size());
+				if (message_data_.size())
+					ostr.write((char*)&message_data_[0], message_data_.size());
 
-			bytes_written += (uint32_t)message_data_.size();
-			
+			}
+			else {
+				uint32_t sz = (uint32_t)this->size();
+				fmp4_write_uint32(sz, int_buf);
+				ostr.write((char*)int_buf, 4);
+				bytes_written += 4;
+
+				ostr.put('e');
+				ostr.put('m');
+				ostr.put('i');
+				ostr.put('b');
+				bytes_written += 4;
+				ostr.put((uint8_t)0);
+				ostr.put(0u);
+				ostr.put(0u);
+				ostr.put(0u);
+				bytes_written += 4;
+
+				fmp4_write_uint32(0, int_buf);
+				ostr.write(int_buf, 4);
+				bytes_written += 4;
+				fmp4_write_int64(presentation_time_delta_, long_buf);
+				ostr.write(long_buf, 8);
+				bytes_written += 8;
+				fmp4_write_uint32(event_duration_, int_buf);
+				ostr.write(int_buf, 4);
+				bytes_written += 4;
+				fmp4_write_uint32(id_, int_buf);
+				ostr.write(int_buf, 4);
+				bytes_written += 4;
+				ostr.write(scheme_id_uri_.c_str(), scheme_id_uri_.size() + 1);
+				bytes_written += (uint32_t)scheme_id_uri_.size() + 1;
+				ostr.write(value_.c_str(), value_.size() + 1);
+				bytes_written += (uint32_t)value_.size() + 1;
+
+				if (message_data_.size())
+					ostr.write((char*)&message_data_[0], message_data_.size());
+
+				bytes_written += (uint32_t)message_data_.size();
+			}
 			return bytes_written;
 		}
 
@@ -305,7 +342,7 @@ namespace event_track {
 	void write_event_track_cmaf_header(uint32_t track_id, uint32_t timescale, std::ostream& ot);
 
 	//! function for getting bytes of a header
-	uint32_t get_meta_header_bytes(uint32_t track_id, uint32_t timescale, std::vector<uint8_t>& header_bytes);
+	uint32_t get_meta_header_bytes(uint32_t track_id, uint32_t timescale, std::vector<uint8_t>& header_bytes, bool is_vtt=false);
 
 	//! function for getting bytes of a header
 	uint32_t get_meta_segment_bytes(std::vector<event_track::DASHEventMessageBoxv1>& in_emsg_list,
@@ -313,7 +350,9 @@ namespace event_track {
 			uint64_t seg_end,
 			uint32_t track_id,
 			uint32_t timescale,
-			std::vector<uint8_t>& segment_bytes);
+			std::vector<uint8_t>& segment_bytes,
+		    uint32_t seq_num=0,
+		    bool is_vtt=false);
 
 	void set_evte(std::vector<uint8_t> &moov_in);
 
@@ -323,7 +362,9 @@ namespace event_track {
 		uint64_t sample_presentation_time_;
 		uint32_t sample_duration_;
 		std::vector<EventMessageInstanceBox> instance_boxes_;
+		bool is_vtt_;
 		bool is_emeb_;
+		
 
 		std::size_t size()
 		{
@@ -345,7 +386,10 @@ namespace event_track {
 		{
 			if (is_emeb_ || instance_boxes_.size() == 0) 
 			{
-				ostr.write((const char *)&emeb[0], 8);
+				if (!is_vtt_)
+				    ostr.write((const char *)&emeb[0], 8);
+				else
+					ostr.write((const char*)&vtte[0], 8);
 				return 8;
 			}
 			else 
@@ -372,6 +416,8 @@ namespace event_track {
 				return t_size;
 			}
 		}
+
+		
 	};
 
 
@@ -387,13 +433,15 @@ namespace event_track {
 		const std::vector<DASHEventMessageBoxv1> &emsgs_in,
 		std::vector<EventSample> &samples_out,
 		uint64_t segment_start = 0,
-		uint64_t segment_end = 0);
+		uint64_t segment_end = 0,
+		bool is_vtt = false);
 
 	void write_evt_samples_as_fmp4_fragment(std::vector<EventSample> &samples_in,
 		std::ostream &ostr,
 		uint64_t timestamp_tfdt,
 		uint32_t track_id,
-		uint64_t next_tfdt);
+		uint64_t next_tfdt,
+		uint32_t seq_num=0);
 
 	int write_to_segmented_event_track_file(
 		const std::string& out_file,
@@ -430,4 +478,7 @@ namespace event_track {
 	DASHEventMessageBoxv1 generate_random_event(bool set_duration_to_zero = false, uint32_t max_p = 150, uint32_t max_d = 20);
 	//static void write_embe(std::ostream &ostr, uint64_t timestamp_tfdt, uint32_t track_id, uint32_t duration_in);
 }
+
+
+
 #endif 

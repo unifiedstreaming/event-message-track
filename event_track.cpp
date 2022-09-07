@@ -10,6 +10,15 @@ using namespace fmp4_stream;
 // base 64 sparse movie header
 std::string moov_64_enc("AAACNG1vb3YAAABsbXZoZAAAAAAAAAAAAAAAAAAAAAEAAAAAAAEAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAGYdHJhawAAAFx0a2hkAAAABwAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAABNG1kaWEAAAAgbWRoZAAAAAAAAAAAAAAAAAAAAAEAAAAAVcQAAAAAADFoZGxyAAAAAAAAAABtZXRhAAAAAAAAAAAAAAAAVVNQIE1ldGEgSGFuZGxlcgAAAADbbWluZgAAAAxubWhkAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAKNzdGJsAAAAV3N0c2QAAAAAAAAAAQAAAEd1cmltAAAAAAAAAAEAAAA3dXJpIAAAAABodHRwOi8vd3d3LnVuaWZpZWQtc3RyZWFtaW5nLmNvbS9kYXNoL2Vtc2cAAAAAEHN0dHMAAAAAAAAAAAAAABBzdHNjAAAAAAAAAAAAAAAUc3RzegAAAAAAAAAAAAAAAAAAABBzdGNvAAAAAAAAAAAAAAAobXZleAAAACB0cmV4AAAAAAAAAAEAAAABAAAAAAAAAAAAAAAA");
 
+namespace webvtt   
+{
+
+	std::string scheme_id_vtte = "urn:webvtt";
+
+	char base_64_ftyp[] = "AAAAJGZ0eXBjbWZjAAAAAGNtZmNpc282ZGFzaGN3dnRpc285";
+	char base_64_moov[] = "AAACMW1vb3YAAABsbXZoZAAAAAAAAAAAAAAAAAAAA+gAAAAAAAEAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAGBdHJhawAAAFx0a2hkAAAABwAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAABHW1kaWEAAAAgbWRoZAAAAAAAAAAAAAAAAAAAA+gAAAAAQfIAAAAAADFoZGxyAAAAAAAAAAB0ZXh0AAAAAAAAAAAAAAAAVVNQIFRleHQgSGFuZGxlcgAAAAASZWxuZwAAAABwdC1wdAAAAACybWluZgAAAAxubWhkAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAHpzdGJsAAAALnN0c2QAAAAAAAAAAQAAAB53dnR0AAAAAAAAAAEAAAAOdnR0Q1dFQlZUVAAAABBzdHRzAAAAAAAAAAAAAAAQc3RzYwAAAAAAAAAAAAAAFHN0c3oAAAAAAAAAAAAAAAAAAAAQc3RjbwAAAAAAAAAAAAAAPG12ZXgAAAAUbWVoZAEAAAAAAAAAAAim2AAAACB0cmV4AAAAAAAAAAEAAAABAAAAAAAAAAAAAAAA";
+}
+
 //! algorithm to find all sample boundaries between segment_start and segment_end (0=infinite)
 uint32_t event_track::find_sample_boundaries(
 	const std::vector<DASHEventMessageBoxv1> &emsgs_in,
@@ -64,15 +73,18 @@ wrapper around event_track write header function  */
 uint32_t event_track::get_meta_header_bytes(
 	uint32_t track_id,
 	uint32_t timescale,
-	std::vector<uint8_t>& header_bytes)
+	std::vector<uint8_t>& header_bytes,
+	bool is_vtt)
 {
 	std::stringstream ot(
 		std::stringstream::out | \
 		std::stringstream::in | \
 		std::stringstream::binary\
 	);
-
-	event_track::write_event_track_cmaf_header(track_id, timescale, ot);
+	if (is_vtt)
+		event_track::write_vtt_track_cmaf_header(track_id, timescale, ot);
+	else
+	    event_track::write_event_track_cmaf_header(track_id, timescale, ot);
 
 	ot.seekg(0, ot.end);
 	uint64_t length = ot.tellg();
@@ -99,7 +111,9 @@ uint32_t event_track::get_meta_segment_bytes(
 	uint64_t seg_end,
 	uint32_t track_id,
 	uint32_t timescale,
-	std::vector<uint8_t>& segment_bytes)
+	std::vector<uint8_t>& segment_bytes,
+	uint32_t seq_num,
+    bool is_vtt)
 {
 	std::stringstream ot(
 		std::stringstream::out | \
@@ -113,7 +127,8 @@ uint32_t event_track::get_meta_segment_bytes(
 		in_emsg_list,
 		samples_in_segment,
 		seg_start,
-		seg_end
+		seg_end,
+		is_vtt
 	);
 
 	event_track::write_evt_samples_as_fmp4_fragment(
@@ -121,7 +136,8 @@ uint32_t event_track::get_meta_segment_bytes(
 		ot,
 		seg_start,
 		track_id,
-		seg_end
+		seg_end,
+		seq_num
 	);
 
 	ot.seekg(0, ot.end);
@@ -145,7 +161,8 @@ uint32_t event_track::find_event_samples(
 	const std::vector<event_track::DASHEventMessageBoxv1> &emsgs_in,
 	std::vector<event_track::EventSample> &samples_out,
 	uint64_t segment_start ,
-	uint64_t segment_end )
+	uint64_t segment_end, 
+	bool is_vtt)
 {
 
 	std::vector<uint64_t> sample_boundaries = std::vector<uint64_t>();
@@ -158,6 +175,7 @@ uint32_t event_track::find_event_samples(
 		s.sample_duration_ = (int32_t)((int64_t)sample_boundaries[i + 1] - (int64_t)sample_boundaries[i]);
 		
 		s.is_emeb_ = true;
+		s.is_vtt_ = is_vtt;
 
 		for (unsigned int k = 0; k < emsgs_in.size(); k++)
 		{
@@ -187,16 +205,20 @@ void event_track::write_evt_samples_as_fmp4_fragment(
 	std::ostream &ostr, 
 	uint64_t timestamp_tfdt, 
 	uint32_t track_id,
-	uint64_t next_tfdt)
+	uint64_t next_tfdt,
+	uint32_t seq_num)
 {
 	if (samples_in.size())
 	{
 		// --- init mfhd
 		mfhd l_mfhd = {};
-		l_mfhd.seq_nr_ = 0;
-		uint64_t l_mfhd_size = l_mfhd.size();
 
-		//uint32_t l_announce = 8 * this->timescale_; // following the method of push input stream (i do not think this is correct)
+		if (seq_num > 0)
+			l_mfhd.seq_nr_ = seq_num;
+		else
+			l_mfhd.seq_nr_ = sequence_number++;
+
+		uint64_t l_mfhd_size = l_mfhd.size();
 
 		// --- init tfhd
 		tfhd l_tfhd = {};
@@ -273,7 +295,7 @@ void event_track::write_evt_samples_as_fmp4_fragment(
 		ostr.put('d');
 		fmp4_write_uint32((uint32_t)0u, int_buf);
 		ostr.write(int_buf, 4);
-		fmp4_write_uint32((uint32_t)sequence_number++, int_buf);
+		fmp4_write_uint32((uint32_t)l_mfhd.seq_nr_, int_buf);
 		ostr.write(int_buf, 4);
 
 		// write traf 8 bytes total 32 bytes
@@ -355,8 +377,8 @@ void event_track::write_evt_samples_as_fmp4_fragment(
 		for (int i = 0; i < samples_in.size(); i++){
 			if (USE_EMSG_V1)
 			   samples_in[i].write_as_emsgv1(ostr);
-		        else 
-		           samples_in[i].write(ostr);
+		    else 
+		        samples_in[i].write(ostr);
 		}
 
 	}
@@ -370,13 +392,10 @@ void event_track::write_event_track_cmaf_header(uint32_t track_id, uint32_t time
 	set_track_id(sparse_moov, track_id);
 
 	// write back the timescale mvhd / mhd
-	fmp4_write_uint32(timescale, (char*)&sparse_moov[28]);
-	fmp4_write_uint32(timescale, (char*)&sparse_moov[244]);
-	fmp4_write_uint32(track_id, (char*)&sparse_moov[544]);
+	fmp4_write_uint32(timescale, (char*) &sparse_moov[28]);
+	fmp4_write_uint32(timescale, (char*) &sparse_moov[244]);
+	fmp4_write_uint32(track_id,  (char*)  &sparse_moov[544]);
 	event_track::set_evte(sparse_moov);
-
-	
-	//cout << sparse_moov.size() << endl;
 
 	if (ot.good())
 	{
@@ -385,6 +404,27 @@ void event_track::write_event_track_cmaf_header(uint32_t track_id, uint32_t time
 		ot.write((const char*)&sparse_moov[0], sparse_moov.size());
 	}
 	
+	return;
+}
+
+// writes a cmaf heaer of an event message track
+void event_track::write_vtt_track_cmaf_header(uint32_t track_id, uint32_t timescale, std::ostream& ot)
+{
+	std::vector<uint8_t> sparse_moov = base64_decode(webvtt::base_64_moov);
+	
+	set_track_id(sparse_moov, track_id);
+	
+	// write back the timescale mvhd / mhd
+	fmp4_write_uint32(timescale, (char*)&sparse_moov[28]);
+	fmp4_write_uint32(timescale, (char*)&sparse_moov[244]);
+
+	if (ot.good())
+	{
+		// write the ftyp header  
+		ot.write((char*)&sparse_ftyp_vtt[0], 20);
+		ot.write((const char*)&sparse_moov[0], sparse_moov.size());
+	}
+
 	return;
 }
 
