@@ -1055,7 +1055,11 @@ int event_track::ingest_event_stream::print_samples_from_file(std::istream &infi
 }
 
 //! function to generate an avail track and store it on disk
-int event_track::gen_avail_files(uint32_t track_duration, uint32_t seg_duration_ticks_ms, uint32_t avail_duration, uint32_t avail_interval, uint64_t start_time)
+int event_track::gen_avail_files(uint32_t track_duration, 
+	uint32_t seg_duration_ticks_ms, 
+	uint32_t avail_duration, 
+	uint32_t avail_interval, 
+	uint64_t start_time)
 {
 	std::vector<event_track::DASHEventMessageBoxv1> events;
 

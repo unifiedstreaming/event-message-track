@@ -135,7 +135,7 @@ namespace event_track {
 		std::size_t size()
 		{
 			if (scheme_id_uri_.compare("urn:webvtt") == 0)
-				return message_data_.size() + 16;
+				return 2 * message_data_.size() + 24;
 
 			return 8 + 4 + 8 + 4 + 4 + 4 + scheme_id_uri_.size() + value_.size() + 2 + message_data_.size();
 		}
@@ -187,9 +187,33 @@ namespace event_track {
 				ostr.put('c');
 				bytes_written += 4;
 
-				fmp4_write_uint32(sz - 8, int_buf);
+				sz = message_data_.size() + 8;
+				fmp4_write_uint32(sz, int_buf);
 				ostr.write((char*)int_buf, 4);
 				bytes_written += 4;
+				ostr.put('i');
+				ostr.put('d');
+				ostr.put('e');
+				ostr.put('n');
+
+				if (message_data_.size())
+				{
+					for (int k = 0; k < message_data_.size(); k++)
+                    {
+					   char c = (char) message_data_[k];
+					   if (c != ' ')
+					      ostr.put(c);
+					   else 
+						  ostr.put('-');
+
+					}					
+				}
+					
+
+				fmp4_write_uint32(sz, int_buf);
+				ostr.write((char*)int_buf, 4);
+				bytes_written += 4;
+
 				ostr.put('p');
 				ostr.put('a');
 				ostr.put('y');
