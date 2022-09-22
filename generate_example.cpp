@@ -14,7 +14,7 @@ int main()
 {
 	std::vector<DASHEventMessageBoxv1> emsgs_in;
 
-	for (int i = 0; i < 10; i++) 
+	for (int i = 0; i < 4; i++) 
 	{
 		DASHEventMessageBoxv1 e = generate_random_event();
 		

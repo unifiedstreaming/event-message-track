@@ -466,7 +466,8 @@ namespace fmp4_stream
 	void gen_splice_insert(std::vector<uint8_t> &out_splice_insert, uint32_t event_id, uint32_t duration)
 	{
 		out_splice_insert = base64_decode(base64splice_insert);
-		uint8_t * ptr = &out_splice_insert[0];
+		out_splice_insert[19] = (uint8_t) 255u;
+		uint8_t *ptr = &out_splice_insert[0];
 		ptr += 14;
 		fmp4_write_uint32(event_id, (char *)ptr);
 		ptr += 5;
@@ -476,6 +477,8 @@ namespace fmp4_stream
 		bool program_splice_flag = b2[6];
 		bool duration_flag = b2[5];
 		bool splice_immediate_flag = b2[4];
+		b2[4] = true;
+		*ptr = (char)b2.to_ulong();
 		ptr++;
 
 		if (program_splice_flag && !splice_immediate_flag)

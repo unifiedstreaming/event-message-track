@@ -1117,9 +1117,13 @@ int event_track::gen_avail_files(uint32_t track_duration,
 			<< "duration=" << '"' << it2->event_duration_ << '"' << " "  \
 			<< "id=" << '"' << it2->id_ << '"';
 		if (it2->scheme_id_uri_.compare("urn:scte:scte35:2013:bin") == 0) // write binary scte as xml + bin as defined by scte-35
-		{
+		{ 
+			
+			std::string base64_mes = base64_encode(it2->message_data_.data(), (unsigned int)it2->message_data_.size());
+			std::vector<uint8_t> dec = base64_decode(base64_mes);
+			std::cout << "base64 of cue: " << base64_mes << std::endl;
 			ot << '>' << std::endl << "  <Signal xmlns=" << '"' << "http://www.scte.org/schemas/35/2016" << '"' << '>' << std::endl \
-				<< "    <Binary>" << base64_encode(it2->message_data_.data(), (unsigned int)it2->message_data_.size()) << "</Binary>" << std::endl
+				<< "    <Binary>" << base64_mes << "</Binary>" << std::endl
 				<< "  </Signal>" << std::endl;
 		}
 		else {
