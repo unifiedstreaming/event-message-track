@@ -1082,7 +1082,7 @@ int event_track::gen_avail_files(uint32_t track_duration,
 		ev.event_duration_ = avail_duration;
 		ev.timescale_ = timescale;
 		ev.scheme_id_uri_ = "urn:scte:scte35:2013:bin";
-		fmp4_stream::gen_splice_insert(ev.message_data_, ev.id_, ev.event_duration_ * 90);
+		fmp4_stream::gen_splice_insert(ev.message_data_, ev.id_, ev.event_duration_ * 90, false);
 		st_2 += avail_interval;
 		events.push_back(ev);
 	}

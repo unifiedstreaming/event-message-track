@@ -26,8 +26,13 @@ for better results use exising libraries/parsers
 
 ------------------*/
 
+#include <stdint.h>
+
+
+
 namespace fmp4_stream
 {
+    
 
 	void box::parse(char const* ptr)
 	{
@@ -463,10 +468,10 @@ namespace fmp4_stream
 	}*/
 
 	// generate a splice insert command
-	void gen_splice_insert(std::vector<uint8_t> &out_splice_insert, uint32_t event_id, uint32_t duration)
+	void gen_splice_insert(std::vector<uint8_t> &out_splice_insert,int event_id, uint32_t duration, bool splice_immediate)
 	{
 		out_splice_insert = base64_decode(base64splice_insert);
-		out_splice_insert[19] = (uint8_t) 255u;
+
 		uint8_t *ptr = &out_splice_insert[0];
 		ptr += 14;
 		fmp4_write_uint32(event_id, (char *)ptr);
@@ -477,7 +482,7 @@ namespace fmp4_stream
 		bool program_splice_flag = b2[6];
 		bool duration_flag = b2[5];
 		bool splice_immediate_flag = b2[4];
-		b2[4] = true;
+		b2[4] = splice_immediate;
 		*ptr = (char)b2.to_ulong();
 		ptr++;
 
@@ -490,12 +495,28 @@ namespace fmp4_stream
 			fmp4_write_uint32(duration, (const char *)ptr);
 			ptr += 4;
 		}
-		
+	
 		//uint32_t crc = 0;
 		//crc32_fmp4(&out_splice_insert[0], out_splice_insert.size() - 4, &crc);
 
 		//ptr = &out_splice_insert[out_splice_insert.size() - 4];
 		//fmp4_write_uint32(crc, (const char*)ptr);
+		//uint32_t table[256];
+		//crc::crc32::generate_table(table);
+
+		//char* ptr2 = (char*)&out_splice_insert[0];
+		//uint16_t slen = out_splice_insert.size() - 4;
+		//printf("Size of Data struct is: %u\n", slen);                 // 16 bytes
+
+		//uint32_t CRC = 0;
+		//for (int cnt = 0; cnt < slen; cnt++) {
+		//	CRC = crc::crc32::update(table, CRC, ptr2, 1);
+		//	ptr2++;
+		//}
+		//// get the original crc
+		//uint32_t or_crc = fmp4_read_uint32(ptr2);
+		////fmp4_write_uint32(CRC, (char*)ptr2);
+		//printf("Piece-wise crc32 of struct Data is: 0x%X \n", CRC);
 	}
 
 
