@@ -483,13 +483,33 @@ namespace fmp4_stream
 		bool duration_flag = b2[5];
 		bool splice_immediate_flag = b2[4];
 		b2[4] = splice_immediate;
-		*ptr = (char)b2.to_ulong();
-		ptr++;
-
-		if (program_splice_flag && !splice_immediate_flag)
+		*ptr = (unsigned char)b2.to_ulong();
+		
+		if (program_splice_flag && splice_immediate)
+		{
+			std::vector<uint8_t> trailer;
+			for (int k = 21; k < out_splice_insert.size() - 1; k++)
+			{
+				trailer.push_back(out_splice_insert[k]);
+			}
+			ptr = &trailer[0];
 			ptr++;
-		if (program_splice_flag)
-			ptr++;
+			if (duration_flag)
+			{
+				fmp4_write_uint32(duration, (const char*)ptr);
+				ptr += 4;
+			}
+			for (int k = 0; k < trailer.size(); k++)
+			{
+				out_splice_insert[k + 20] = trailer[k];
+			}
+			int32_t or_size = out_splice_insert.size();
+			out_splice_insert.resize(or_size - 1);
+			return;
+		}
+		
+		ptr+=3;
+	
 		if (duration_flag)
 		{
 			fmp4_write_uint32(duration, (const char *)ptr);
