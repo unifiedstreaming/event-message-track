@@ -473,6 +473,11 @@ namespace fmp4_stream
 		out_splice_insert = base64_decode(base64splice_insert);
 
 		uint8_t *ptr = &out_splice_insert[0];
+		if (splice_immediate)
+		{
+			*(ptr + 2) = *(ptr + 2) - 1;
+		}
+
 		ptr += 12;
 		
 		if (splice_immediate)
