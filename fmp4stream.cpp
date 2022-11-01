@@ -473,10 +473,17 @@ namespace fmp4_stream
 		out_splice_insert = base64_decode(base64splice_insert);
 
 		uint8_t *ptr = &out_splice_insert[0];
-		ptr += 14;
+		ptr += 12;
+		
+		if (splice_immediate)
+		{
+			*(ptr + 2) = *(ptr+2) - 1;
+		}
+
+		ptr += 2;
 		fmp4_write_uint32(event_id, (char *)ptr);
 		ptr += 5;
-
+		
 		std::bitset<8> b2(*ptr);
 		bool out_of_network_indicator = b2[7];
 		bool program_splice_flag = b2[6];
