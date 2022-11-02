@@ -482,7 +482,7 @@ namespace fmp4_stream
 		
 		if (splice_immediate)
 		{
-			*(ptr + 2) = *(ptr+2) - 1;
+			*(ptr ) = *(ptr) - 1;
 		}
 
 		ptr += 2;
