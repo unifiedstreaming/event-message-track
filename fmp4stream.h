@@ -469,13 +469,22 @@ namespace fmp4_stream {
 
 	};
 
+	struct trex
+	{
+		uint32_t track_id_;
+		uint32_t default_sample_description_index_;
+		uint32_t default_sample_duration_;
+		uint32_t default_sample_size_;
+		uint32_t default_sample_flags_;
+	};
 	//--------------------------- fmp4 ingest stream definition --------------------------------------------
 	struct init_fragment
 	{
 		box ftyp_box_;
 		box moov_box_;
-
+		
 		uint32_t get_time_scale();
+		trex get_trex();
 	};
 
 	struct media_fragment
@@ -487,6 +496,8 @@ namespace fmp4_stream {
 		//
 		box moof_box_;
 		box mdat_box_;
+
+		trex trex_;
 
 		// as cmaf only has one traf box we directly store the entries of it
 		mfhd mfhd_;

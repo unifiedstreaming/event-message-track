@@ -337,7 +337,7 @@ namespace fmp4_stream
 
 	uint64_t media_fragment::get_duration()
 	{
-		uint64_t duration = 0;
+		uint64_t duration = this->trex_.default_sample_duration_;
 
 		for (unsigned int i = 0; i < trun_.sample_count_; i++)
 		{
@@ -346,7 +346,9 @@ namespace fmp4_stream
 			{
 				sample_duration = trun_.m_sentry[i].sample_duration_;
 			}
-
+			else if (tfhd_.default_sample_duration_present_)
+				sample_duration = tfhd_.default_sample_duration_;
+			
 			duration += sample_duration;
 		}
 		return duration;
@@ -799,6 +801,69 @@ namespace fmp4_stream
 	
 	}
 
+	// updated this function a bit to be a bit more generic
+	trex init_fragment::get_trex()
+	{
+		char* ptr = (char*)moov_box_.box_data_.data();
+		bool trak_found = false;
+		bool mvex_found = false;
+		bool trex_found = false;
+
+
+		uint32_t pos = 8;
+
+		// find trak box 
+		while (!trak_found && pos < moov_box_.box_data_.size())
+		{
+			if (f_compare_4cc(ptr + 4 + pos, "trak"))
+				trak_found = true;
+			else
+				pos += fmp4_read_uint32(ptr + pos);
+		}
+		if (trak_found)
+		{
+			pos += 8;
+			while (!mvex_found && pos < moov_box_.box_data_.size())
+			{
+				if (f_compare_4cc(ptr + 4 + pos, "mvex"))
+					mvex_found = true;
+				else
+					pos += fmp4_read_uint32(ptr + pos);
+			};
+		}
+		if (mvex_found)
+		{
+			pos += 8;
+			while (!trex_found && pos < moov_box_.box_data_.size())
+			{
+				if (f_compare_4cc(ptr + 4 + pos, "trex"))
+					trex_found = true;
+				else
+					pos += fmp4_read_uint32(ptr + pos);
+			};
+		}
+		if (trex_found)
+		{
+			trex t = {}; 
+			// uint32_t track_id_;
+			// uint32_t default_sample_description_index_;
+			// uint32_t default_sample_duration_;
+			// uint32_t default_sample_size_;
+			// uint32_t default_sample_flags_;
+			t.track_id_ = fmp4_read_uint32(ptr + pos + 12);
+			t.default_sample_description_index_ = fmp4_read_uint32(ptr + pos + 16);
+			t.default_sample_duration_ = fmp4_read_uint32(ptr + pos + 20);
+			t.default_sample_size_ = fmp4_read_uint32(ptr + pos + 24);
+			t.default_sample_flags_ = fmp4_read_uint32(ptr + pos + 28);
+			
+			return t;
+		}
+		trex t = {};
+		
+		return t;
+
+	}
+
 	void media_fragment::parse_moof()
 	{
 		if (!moof_box_.size_)
@@ -1025,6 +1090,7 @@ namespace fmp4_stream
 					if (f_compare_4cc((char*)it->box_type_.c_str(), "moov"))
 					{
 						init_fragment_.moov_box_ = *it;
+						
 						if (init_only)
 							return 0;
 					}
@@ -1033,6 +1099,7 @@ namespace fmp4_stream
 					{
 						media_fragment m = {};
 						m.moof_box_ = *it;
+						init_fragment_.get_trex();
 						bool mdat_found = false;
 						auto prev_box = (it - 1);
 						// see if there is an emsg before
