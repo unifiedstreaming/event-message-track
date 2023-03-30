@@ -1028,15 +1028,25 @@ namespace fmp4_stream
 		uint64_t ssize = media_fragment_[index].moof_box_.large_size_ + media_fragment_[index].mdat_box_.large_size_;
 		media_seg_dat.resize(ssize);
 
+		// copy emsgs
+		size_t ptr_of = 0;
+		for (int k = 0; k < media_fragment_[index].emsg_.size(); k++)
+		{
+			std::copy(media_fragment_[index].emsg_[k].box_data_.begin(),
+				media_fragment_[index].emsg_[k].box_data_.end(),
+				media_seg_dat.begin());
+			ptr_of += media_fragment_[index].emsg_[k].size();
+		}
+
 		// copy moviefragmentbox
 		std::copy(media_fragment_[index].moof_box_.box_data_.begin(), 
 			      media_fragment_[index].moof_box_.box_data_.end(), 
-			      media_seg_dat.begin()
+			      media_seg_dat.begin() + ptr_of
 	    );
 		// copy mdat
 		std::copy(media_fragment_[index].mdat_box_.box_data_.begin(), 
 			      media_fragment_[index].mdat_box_.box_data_.end(), 
-			      media_seg_dat.begin() + media_fragment_[index].moof_box_.large_size_
+			      media_seg_dat.begin() + media_fragment_[index].moof_box_.large_size_ + ptr_of
 	    );
 
 		return ssize;
