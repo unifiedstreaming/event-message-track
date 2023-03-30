@@ -1109,7 +1109,7 @@ namespace fmp4_stream
 					{
 						media_fragment m = {};
 						m.moof_box_ = *it;
-						init_fragment_.get_trex();
+						m.trex_ = init_fragment_.get_trex();
 						bool mdat_found = false;
 						auto prev_box = (it - 1);
 						// see if there is an emsg before
