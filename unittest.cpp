@@ -132,3 +132,49 @@ TEST_CASE("test with randomly generated events]") {
 		}
 	}
 }
+
+TEST_CASE("test kind box insertion and update with add_kind_box_to_moov") {
+    std::vector<uint8_t> moov_box = base64_decode(moov_64_enc);
+
+    // Returns the offset of the start of the box (size field)
+    auto find_box = [](const std::vector<uint8_t>& buf, const char* type) -> std::size_t {
+        for (std::size_t i = 4; i < buf.size() - 4; i += 4) {
+            if (std::string((char *)&buf[i], 4) == type)
+                return i - 4; // Return the offset of the size field
+        }
+        return std::string::npos;
+    };
+
+    // The schemeIdURI starts at box_start + 12 (8 bytes header + 4 bytes version/flags)
+    auto extract_kind_uri = [](const std::vector<uint8_t>& buf, std::size_t box_start) -> std::string {
+        const char* uri_start = reinterpret_cast<const char*>(&buf[box_start + 12]);
+        const char* uri_end = std::find(uri_start, reinterpret_cast<const char*>(&buf[0]) + buf.size(), '\0');
+        return std::string(uri_start, uri_end);
+    };
+
+    SECTION("insert kind box when udta doesn't exist") {
+        std::string schemeIdUri = "urn:mpeg:dash:event:c2pa:21";
+        add_kind_box_to_moov(moov_box, schemeIdUri);
+
+        auto udta_pos = find_box(moov_box, "udta");
+        REQUIRE(udta_pos != std::string::npos);
+
+        auto kind_pos = find_box(moov_box, "kind");
+        REQUIRE(kind_pos != std::string::npos);
+
+        std::string stored_uri = extract_kind_uri(moov_box, kind_pos);
+        REQUIRE(stored_uri == schemeIdUri);
+    }
+
+    SECTION("update existing kind box") {
+        add_kind_box_to_moov(moov_box, "urn:mpeg:dash:event:c2pa:21");
+        std::string updatedUri = "urn:mpeg:dash:event:c2pa:22";
+        add_kind_box_to_moov(moov_box, updatedUri);
+
+        auto kind_pos = find_box(moov_box, "kind");
+        REQUIRE(kind_pos != std::string::npos);
+
+        std::string stored_uri = extract_kind_uri(moov_box, kind_pos);
+        REQUIRE(stored_uri == updatedUri);
+    }
+}

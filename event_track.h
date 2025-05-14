@@ -13,6 +13,9 @@
 // used only for testing and generating random events
 #include <random>
 
+// Make the moov_64_enc available outside the namespace (e.g., unit tests)
+extern std::string moov_64_enc;
+
 namespace event_track {
 
 	// empty message cue
@@ -501,6 +504,12 @@ namespace event_track {
 	// first arg set duration to zero, second and third distribution of presentation time and duration
 	DASHEventMessageBoxv1 generate_random_event(bool set_duration_to_zero = false, uint32_t max_p = 150, uint32_t max_d = 20);
 	//static void write_embe(std::ostream &ostr, uint64_t timestamp_tfdt, uint32_t track_id, uint32_t duration_in);
+
+	//! Adds a kind box to the moov/trak/udta box with the given schemeIdUri
+	void add_kind_box_to_moov(std::vector<uint8_t> &moov_in, const std::string& schemeIdUri);
+
+	//! Updates the size of trak box after adding a kind box
+	void update_trak_box_size(std::vector<uint8_t> &moov_in, uint32_t size_diff);
 }
 
 

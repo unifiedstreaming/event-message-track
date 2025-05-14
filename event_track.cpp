@@ -681,6 +681,9 @@ int event_track::write_to_segmented_event_track_file(
 
 	event_track::set_evte(sparse_moov);
 
+	// Add /moov/trak/udata/kind box with the provided urn
+	event_track::add_kind_box_to_moov(sparse_moov, urn);
+
 	std::ofstream ot(out_file, std::ios::binary);
 	//cout << sparse_moov.size() << endl;
 
@@ -1137,4 +1140,93 @@ int event_track::gen_avail_files(uint32_t track_duration,
 	ot.close();
 
 	return 0;
+}
+
+void event_track::update_trak_box_size(
+	std::vector<uint8_t> &moov_in, uint32_t size_diff
+)
+{
+    // Update moov box size
+    uint32_t moov_size = fmp4_read_uint32((char *)&moov_in[0]);
+    moov_size += size_diff;
+    fmp4_write_uint32(moov_size, (char *)&moov_in[0]);
+
+    // Find and update trak box size
+    for (std::size_t i = 0; i < moov_in.size() - 8; i++) {
+        if (std::string((char *)&moov_in[i]).compare("trak") == 0) {
+            uint32_t trak_size = fmp4_read_uint32((char *)&moov_in[i - 4]);
+            trak_size += size_diff;
+            fmp4_write_uint32(trak_size, (char *)&moov_in[i - 4]);
+            break;
+        }
+    }
+}
+
+void event_track::add_kind_box_to_moov(
+    std::vector<uint8_t>& moov_in, const std::string& schemeIdUri
+)
+{
+    // Find the trak box
+    for (std::size_t i = 0; i < moov_in.size() - 8; i++) {
+        if (std::string((char *)&moov_in[i]).compare("trak") == 0) {
+            // Find the mdia box
+            std::size_t mdia_pos = i;
+            for (std::size_t j = i + 8; j < moov_in.size() - 8; j++) {
+                if (std::string((char *)&moov_in[j]).compare("mdia") == 0) {
+					// Obtain the end of mdia box
+                    mdia_pos = j - 4 + fmp4_read_uint32((char *)&moov_in[j - 4]);
+                    break;
+                }
+            }
+
+            std::vector<uint8_t> kind_box;
+            kind_box.resize(8); // Reserve space for kind box header
+            kind_box[4] = 'k';
+            kind_box[5] = 'i';
+            kind_box[6] = 'n';
+            kind_box[7] = 'd';
+
+            // Add FullBox version and flags
+            kind_box.push_back(0); // version
+            kind_box.push_back(0); // flags[0]
+            kind_box.push_back(0); // flags[1]
+            kind_box.push_back(0); // flags[2]
+
+            // Add schemeIdUri with null terminator
+            std::copy(
+                schemeIdUri.begin(),
+                schemeIdUri.end(),
+                std::back_inserter(kind_box));
+
+            kind_box.push_back(0); // Add kind's box value
+            kind_box.push_back('\0');
+
+            uint32_t kind_size = kind_box.size();
+            fmp4_write_uint32(kind_size, (char *)&kind_box[0]);
+
+            std::vector<uint8_t> udta_box;
+            udta_box.resize(8); // Reserve space for udta box header
+            udta_box[4] = 'u';
+            udta_box[5] = 'd';
+            udta_box[6] = 't';
+            udta_box[7] = 'a';
+
+            // Add kind box to udta box
+            udta_box.insert(udta_box.end(), kind_box.begin(), kind_box.end());
+
+            // Obtain the exact size of the udta box after adding the kind box
+            uint32_t udta_size = udta_box.size();
+            fmp4_write_uint32(udta_size, (char *)&udta_box[0]);
+
+            // Insert udta box after mdia box
+            moov_in.insert(
+				moov_in.begin() + mdia_pos, udta_box.begin(),
+				udta_box.end());
+
+            // Update the size of the trak box where kind box was inserted
+            update_trak_box_size(moov_in, udta_size);
+
+            break;
+        }
+    }
 }
